@@ -100,8 +100,8 @@ export function LoginScreen({ navigation }: Props) {
                 {t('auth:noAccount')} <Text style={[styles.inlineAction, { color: c.primary }]}>{t('common:register')}</Text>
               </Text>
             </Pressable>
-            <Pressable onPress={() => navigation.navigate('Landing')}>
-              <Text style={[styles.muted, { color: c.textMuted }]}>{t('common:home')}</Text>
+            <Pressable onPress={() => navigation.navigate('ChooseLanguage')}>
+              <Text style={[styles.muted, { color: c.textMuted }]}>{t('common:language', 'Language')}</Text>
             </Pressable>
           </View>
         </View>

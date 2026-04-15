@@ -4,9 +4,9 @@
   "main": "index.ts",
   "scripts": {
     "start": "expo start --go",
-    "android": "expo start --android",
+    "android": "expo run:android",
     "android:dev-client": "expo run:android",
-    "ios": "expo start --ios",
+    "ios": "expo run:ios",
     "web": "expo start --web",
     "test": "jest"
   },

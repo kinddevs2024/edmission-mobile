@@ -1,5 +1,6 @@
 export { AppButton } from '@/components/ui/AppButton'
 export { AppCard } from '@/components/ui/AppCard'
+export { CountryFlag } from '@/components/ui/CountryFlag'
 export { AppTextField } from '@/components/ui/AppTextField'
 export { EmptyState } from '@/components/ui/EmptyState'
 export { ErrorState } from '@/components/ui/ErrorState'

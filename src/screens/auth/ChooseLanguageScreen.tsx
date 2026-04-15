@@ -1,4 +1,3 @@
-import { useMemo } from 'react'
 import { Image, Pressable, StyleSheet, Text, View, useColorScheme } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import type { StackScreenProps } from '@react-navigation/stack'
@@ -7,11 +6,12 @@ import type { SupportedLng } from '@/i18n/config'
 import { supportedLngs } from '@/i18n/config'
 import { fontSize, fontWeight, radii, space, useThemeColors } from '@/theme'
 import type { AuthStackParamList } from '@/navigation/types'
+import { CountryFlag } from '@/components/ui/CountryFlag'
 
-const labels: Record<SupportedLng, { flag: string; text: string }> = {
-  en: { flag: '🇺🇸', text: 'English' },
-  ru: { flag: '🇷🇺', text: 'Русский' },
-  uz: { flag: '🇺🇿', text: "O'zbek" },
+const labels: Record<SupportedLng, { flagCode: 'us' | 'ru' | 'uz'; text: string }> = {
+  en: { flagCode: 'us', text: 'English' },
+  ru: { flagCode: 'ru', text: 'Русский' },
+  uz: { flagCode: 'uz', text: "O'zbek" },
 }
 const appIconNative = require('../../../assets/icon.png')
 
@@ -22,15 +22,10 @@ export function ChooseLanguageScreen({ navigation, route }: Props) {
   const c = useThemeColors()
   const isDark = useColorScheme() === 'dark'
 
-  const nextRoute = useMemo(() => {
-    const next = route.params?.next
-    return next === 'Login' || next === 'Register' || next === 'Landing' ? next : 'Landing'
-  }, [route.params?.next])
-
   const pick = async (lng: SupportedLng) => {
     await changeAppLanguage(lng)
     await i18n.changeLanguage(lng)
-    navigation.navigate(nextRoute)
+    navigation.navigate('Landing')
   }
 
   return (
@@ -66,7 +61,7 @@ export function ChooseLanguageScreen({ navigation, route }: Props) {
                   pressed && styles.selectorPillPressed,
                 ]}
               >
-                <Text style={styles.selectorFlag}>{option.flag}</Text>
+                <CountryFlag code={option.flagCode} size={22} />
                 <Text style={[styles.selectorText, { color: c.text }]}>{option.text}</Text>
               </Pressable>
             )
@@ -133,10 +128,6 @@ const styles = StyleSheet.create({
   },
   selectorPillPressed: {
     opacity: 0.8,
-  },
-  selectorFlag: {
-    fontSize: 18,
-    lineHeight: 22,
   },
   selectorText: {
     fontSize: fontSize.xs,

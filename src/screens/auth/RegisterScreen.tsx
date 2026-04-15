@@ -197,8 +197,8 @@ export function RegisterScreen({ navigation }: Props) {
                   {t('auth:haveAccount')} <Text style={[styles.inlineAction, { color: c.primary }]}>{t('common:login')}</Text>
                 </Text>
               </Pressable>
-              <Pressable onPress={() => navigation.navigate('Landing')}>
-                <Text style={[styles.centerMuted, { color: c.textMuted }]}>{t('common:home')}</Text>
+              <Pressable onPress={() => navigation.navigate('ChooseLanguage')}>
+                <Text style={[styles.centerMuted, { color: c.textMuted }]}>{t('common:language', 'Language')}</Text>
               </Pressable>
             </View>
           </>

@@ -1,7 +1,9 @@
+import { useEffect, useState } from 'react'
 import { createStackNavigator } from '@react-navigation/stack'
 import { Ionicons } from '@expo/vector-icons'
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native'
+import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import { LandingScreen } from '@/screens/landing/LandingScreen'
 import { LoginScreen } from '@/screens/auth/LoginScreen'
 import { RegisterScreen } from '@/screens/auth/RegisterScreen'
@@ -13,27 +15,55 @@ import { YandexCallbackScreen } from '@/screens/auth/YandexCallbackScreen'
 import { PlaceholderScreen } from '@/screens/PlaceholderScreen'
 import { PrivacyScreen } from '@/screens/common/PrivacyScreen'
 import { useThemeColors } from '@/theme'
+import { STORAGE_KEY } from '@/i18n/config'
 import type { AuthStackParamList } from '@/navigation/types'
 
 const Stack = createStackNavigator<AuthStackParamList>()
 
+const HAS_LAUNCHED_KEY = 'edmission_has_launched'
+
 export function AuthNavigator() {
   const { t } = useTranslation('common')
   const c = useThemeColors()
+  const [initialRoute, setInitialRoute] = useState<keyof AuthStackParamList | null>(null)
+
+  useEffect(() => {
+    ;(async () => {
+      const [hasLaunched, savedLng] = await Promise.all([
+        AsyncStorage.getItem(HAS_LAUNCHED_KEY),
+        AsyncStorage.getItem(STORAGE_KEY),
+      ])
+      if (hasLaunched && savedLng) {
+        setInitialRoute('Login')
+      } else {
+        await AsyncStorage.setItem(HAS_LAUNCHED_KEY, '1')
+        setInitialRoute('ChooseLanguage')
+      }
+    })()
+  }, [])
+
+  if (!initialRoute) {
+    return (
+      <View style={[styles.loading, { backgroundColor: c.background }]}>
+        <ActivityIndicator size="large" color={c.primary} />
+      </View>
+    )
+  }
+
   return (
     <Stack.Navigator
-      initialRouteName="ChooseLanguage"
+      initialRouteName={initialRoute}
       detachInactiveScreens={false}
-      screenOptions={({ navigation, route }) => ({
+      screenOptions={({ navigation }) => ({
         headerTitle: '',
         headerShadowVisible: false,
         headerStyle: { backgroundColor: c.background },
         headerLeftContainerStyle: styles.headerLeftWrap,
         headerLeft: ({ canGoBack }) =>
-          route.name !== 'Landing' ? (
+          canGoBack ? (
             <Pressable
               accessibilityRole="button"
-              onPress={() => (canGoBack ? navigation.goBack() : navigation.navigate('Landing'))}
+              onPress={() => navigation.goBack()}
               style={({ pressed }) => [
                 styles.backPill,
                 { borderColor: c.border, backgroundColor: c.card },
@@ -72,6 +102,7 @@ export function AuthNavigator() {
 }
 
 const styles = StyleSheet.create({
+  loading: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   headerLeftWrap: { paddingLeft: 12, paddingTop: 0 },
   backPill: {
     flexDirection: 'row',
