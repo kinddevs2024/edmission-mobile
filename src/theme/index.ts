@@ -1,6 +1,0 @@
-export { colors, lightColors, darkColors, type ThemeColors } from '@/theme/colors'
-export { space } from '@/theme/spacing'
-export { radii } from '@/theme/radii'
-export { fontSize, fontWeight, fontFamily } from '@/theme/typography'
-export { shadowCard, shadowCardHover, shadowButton } from '@/theme/shadows'
-export { useThemeColors } from '@/theme/useThemeColors'
