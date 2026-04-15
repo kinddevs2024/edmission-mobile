@@ -1,0 +1,22 @@
+{
+  "default": "Nimadir xato ketdi. Qaytadan urinib ko'ring.",
+  "invalidCredentials": "Email yoki parol noto'g'ri.",
+  "userExists": "Ushbu email bilan hisob allaqachon mavjud.",
+  "emailNotVerified": "Avval emailingizni tasdiqlang.",
+  "accountPendingApproval": "Hisobingiz administrator tasdiqini kutyapti.",
+  "accountSuspended": "Hisobingiz bloklangan. Qo'llab-quvvatlash bilan bog'laning.",
+  "universityVerificationRequired": "Ushbu bo'limga kirish uchun universitet tasdiqlangan bo'lishi kerak.",
+  "invalidToken": "Havola yaroqsiz yoki muddati o'tgan. Yangi so'rang.",
+  "invalidEmail": "To'g'ri email kiriting.",
+  "passwordRequired": "Parolni kiriting.",
+  "nameRequired": "Ismni kiriting.",
+  "unauthorized": "Qaytadan kiring.",
+  "forbidden": "Ruxsat yo'q.",
+  "notFound": "Topilmadi.",
+  "serverError": "Server xatosi. Keyinroq urinib ko'ring.",
+  "networkError": "Ulanish muammosi. Internetni tekshiring.",
+  "serviceUnavailable": "Xizmat vaqtincha mavjud emas. Keyinroq urinib ko'ring.",
+  "validationFailed": "Ma'lumotlaringizni tekshiring va qayta urinib ko'ring.",
+  "rateLimit": "Juda ko'p urinishlar. Keyinroq urinib ko'ring.",
+  "oauthSignUpRequired": "Ushbu kirish bilan hisob topilmadi. Avval ro'yxatdan o'ting."
+}
