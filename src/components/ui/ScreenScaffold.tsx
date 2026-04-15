@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import {
   KeyboardAvoidingView,
   Platform,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -19,6 +20,9 @@ type Props = {
   contentContainerStyle?: ViewStyle
   /** Extra bottom padding for tab bar */
   bottomInset?: number
+  /** Pull-to-refresh support for scroll screens */
+  refreshing?: boolean
+  onRefresh?: () => void
 }
 
 export function ScreenScaffold({
@@ -27,6 +31,8 @@ export function ScreenScaffold({
   scroll = true,
   contentContainerStyle,
   bottomInset = 0,
+  refreshing = false,
+  onRefresh,
 }: Props) {
   const c = useThemeColors()
   const paddingBottom = space[6] + bottomInset
@@ -41,6 +47,11 @@ export function ScreenScaffold({
       ]}
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
+      refreshControl={
+        onRefresh ? (
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        ) : undefined
+      }
     >
       {children}
     </ScrollView>

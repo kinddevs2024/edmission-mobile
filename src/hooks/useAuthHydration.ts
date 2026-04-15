@@ -20,7 +20,14 @@ export function useAuthHydration(): boolean {
       } else {
         useAuthStore.getState().setAuth(stored.user, stored.accessToken, stored.refreshToken)
         await updateLastActivity()
-        getProfile().catch(() => {})
+        try {
+          await getProfile()
+        } catch {
+          // Stored auth may be stale (expired/revoked). Clear it before app becomes interactive
+          // to prevent races where a late 401 logout cancels a fresh manual login.
+          await clearAuth()
+          useAuthStore.getState().logout()
+        }
       }
       if (!cancelled) setReady(true)
     })()

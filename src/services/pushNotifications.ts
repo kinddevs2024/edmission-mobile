@@ -2,9 +2,9 @@ import Constants from 'expo-constants'
 import { Platform } from 'react-native'
 import { api } from '@/services/api'
 
-const isExpoGo =
-  Constants.executionEnvironment === 'storeClient' ||
-  Constants.appOwnership === 'expo'
+const isSimulator =
+  Constants.executionEnvironment === 'bare' &&
+  Constants.isDevice === false
 let notificationsConfigured = false
 
 async function getNotificationsModule() {
@@ -31,7 +31,7 @@ async function getNotificationsModule() {
  * Call when `user` is present; no-op on web / Expo Go simulator quirks.
  */
 export async function registerPushTokenWithBackend(): Promise<void> {
-  if (Platform.OS === 'web' || isExpoGo) return
+  if (Platform.OS === 'web' || isSimulator) return
   const Notifications = await getNotificationsModule()
 
   const { status: existing } = await Notifications.getPermissionsAsync()

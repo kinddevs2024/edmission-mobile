@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import type { CompositeNavigationProp } from '@react-navigation/native'
 import { useNavigation } from '@react-navigation/native'
@@ -27,7 +27,15 @@ export function UniversityDashboardScreen() {
   const showUniversityTutorial = user != null && user.onboardingTutorialSeen?.university !== true
   const [data, setData] = useState<UniversityDashboardData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState('')
+
+  const loadDashboard = () => {
+    setError('')
+    return getUniversityDashboard()
+      .then(setData)
+      .catch((e) => setError(getApiError(e).message))
+  }
 
   useEffect(() => {
     void getUniversityDashboard()
@@ -35,6 +43,11 @@ export function UniversityDashboardScreen() {
       .catch((e) => setError(getApiError(e).message))
       .finally(() => setLoading(false))
   }, [])
+
+  const onRefresh = () => {
+    setRefreshing(true)
+    void loadDashboard().finally(() => setRefreshing(false))
+  }
 
   const interestedCount = data?.interestedCount ?? 0
   const chatCount = data?.chatCount ?? 0
@@ -46,7 +59,10 @@ export function UniversityDashboardScreen() {
 
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: c.background }]} edges={['bottom']}>
-      <ScrollView contentContainerStyle={styles.scroll}>
+      <ScrollView
+        contentContainerStyle={styles.scroll}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+      >
         <Text style={[styles.h1, { color: c.text }]}>{t('university:dashboard')}</Text>
         {error ? <Text style={{ color: c.danger, marginBottom: space[2] }}>{error}</Text> : null}
         {loading ? <ActivityIndicator color={c.primary} /> : null}

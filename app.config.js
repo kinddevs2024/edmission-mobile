@@ -36,6 +36,9 @@ const googleWeb =
   process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ||
   process.env.VITE_GOOGLE_CLIENT_ID ||
   ''
+const googleExpo =
+  process.env.EXPO_PUBLIC_GOOGLE_EXPO_CLIENT_ID ||
+  googleWeb
 const googleIos =
   process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || googleWeb
 const googleAndroid =
@@ -93,6 +96,7 @@ module.exports = ({ config }) => ({
   extra: {
     ...(config.extra || {}),
     googleWebClientId: googleWeb,
+    googleExpoClientId: googleExpo,
     googleIosClientId: googleIos,
     googleAndroidClientId: googleAndroid,
     yandexClientId: yandexId,

@@ -2,10 +2,11 @@
   "expo": {
     "name": "Edmission",
     "slug": "edmission-mobile",
+    "owner": "kinddevs2024",
     "scheme": "edmission",
     "version": "2.3.2",
     "orientation": "portrait",
-    "icon": "./assets/adaptive-icon.png",
+    "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "splash": {
       "image": "./assets/splash-icon.png",
@@ -19,7 +20,7 @@
     "android": {
       "package": "com.edmission.mobile",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
+        "foregroundImage": "./assets/icon.png",
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,

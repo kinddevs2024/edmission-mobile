@@ -9,7 +9,7 @@ import {
   View,
 } from 'react-native'
 import type { StackNavigationProp } from '@react-navigation/stack'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { Ionicons } from '@expo/vector-icons'
 import { logout } from '@/services/auth'
@@ -31,6 +31,7 @@ export function StudentDashboardScreen({ navigation }: Props) {
   const { t } = useTranslation(['student', 'common'])
   const c = useThemeColors()
   const { user } = useAuth()
+  const queryClient = useQueryClient()
   const showStudentTutorial = user != null && user.onboardingTutorialSeen?.student !== true
 
   const profileQ = useQuery({ queryKey: ['student-profile'], queryFn: getStudentProfile })
@@ -70,9 +71,27 @@ export function StudentDashboardScreen({ navigation }: Props) {
   const goProfile = useCallback(() => navigation.navigate('StudentHome', { path: '/student/profile' }), [navigation])
 
   const loadingDash = appsQ.isPending || offersQ.isPending || profileQ.isPending || docsQ.isPending
+  const refreshingDash = appsQ.isRefetching || offersQ.isRefetching || profileQ.isRefetching || docsQ.isRefetching || recsQ.isRefetching
+
+  const onRefresh = useCallback(() => {
+    void Promise.all([
+      appsQ.refetch(),
+      offersQ.refetch(),
+      profileQ.refetch(),
+      docsQ.refetch(),
+      recsQ.refetch(),
+    ])
+    void queryClient.invalidateQueries({ queryKey: ['notifications'] })
+  }, [appsQ, offersQ, profileQ, docsQ, recsQ, queryClient])
 
   return (
-    <ScreenScaffold scroll title={t('student:studentDashboardTitle')} bottomInset={space[2]}>
+    <ScreenScaffold
+      scroll
+      title={t('student:studentDashboardTitle')}
+      bottomInset={space[2]}
+      refreshing={refreshingDash}
+      onRefresh={onRefresh}
+    >
       {loadingDash ? (
         <ActivityIndicator size="large" color={c.primary} style={styles.loader} />
       ) : null}

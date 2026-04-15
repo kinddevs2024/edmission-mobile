@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { z } from 'zod'
@@ -23,8 +23,17 @@ export function LoginScreen({ navigation }: Props) {
   const [fieldErrors, setFieldErrors] = useState<{ email?: string; password?: string }>({})
   const [submitError, setSubmitError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [submitLocked, setSubmitLocked] = useState(false)
+
+  useEffect(() => {
+    if (!submitLocked) return
+    const id = setTimeout(() => setSubmitLocked(false), 1500)
+    return () => clearTimeout(id)
+  }, [submitLocked])
 
   const onSubmit = async () => {
+    if (submitLocked || loading) return
+    setSubmitLocked(true)
     const schema = z.object({
       email: z.string().email(t('auth:invalidEmail')),
       password: z.string().min(1, t('auth:passwordRequired')),
@@ -88,7 +97,7 @@ export function LoginScreen({ navigation }: Props) {
           <Text style={[styles.err, { color: c.danger }]}>{submitError}</Text>
         ) : null}
 
-        <AppButton title={t('common:login')} loading={loading} onPress={onSubmit} />
+        <AppButton title={t('common:login')} loading={loading} onPress={onSubmit} disabled={loading || submitLocked} />
 
         <View style={styles.links}>
           <Pressable onPress={() => navigation.navigate('ForgotPassword')}>

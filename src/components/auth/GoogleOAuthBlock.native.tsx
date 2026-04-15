@@ -1,18 +1,12 @@
-import { useEffect, useRef } from 'react'
 import { Alert, Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native'
-import * as Google from 'expo-auth-session/providers/google'
 import { useTranslation } from 'react-i18next'
 import { loginWithGoogle } from '@/services/auth'
-import { getGoogleAuthConfig } from '@/config/oauth'
+import { getWebAppUrl } from '@/config/oauth'
+import { openGoogleWebAuthSession } from '@/services/googleAuthSession'
 import { getApiErrorKey } from '@/utils/apiErrorI18n'
 import { fontSize, fontWeight, radii, space, useThemeColors } from '@/theme'
 
 type Mode = 'login' | 'register'
-
-type PendingGoogle = {
-  mode: Mode
-  role: 'student' | 'university'
-}
 
 export function GoogleOAuthBlock({
   mode,
@@ -33,73 +27,47 @@ export function GoogleOAuthBlock({
 }) {
   const { t } = useTranslation(['auth', 'common', 'errors'])
   const c = useThemeColors()
-  const pendingGoogle = useRef<PendingGoogle | null>(null)
-  const processedIdToken = useRef<string>('')
-
-  const [request, response, promptAsync] = Google.useIdTokenAuthRequest(getGoogleAuthConfig())
-
-  useEffect(() => {
-    if (response?.type !== 'success') return
-    const idToken = typeof response.params?.id_token === 'string' ? response.params.id_token : ''
-    if (!idToken || idToken === processedIdToken.current) return
-    const pending = pendingGoogle.current
-    if (!pending) return
-    processedIdToken.current = idToken
-    pendingGoogle.current = null
-
-    void (async () => {
-      setParentGoogleBusy(true)
-      try {
-        if (pending.mode === 'register') {
-          await loginWithGoogle({
-            idToken,
-            role: pending.role,
-            acceptTerms: true,
-          })
-        } else {
-          await loginWithGoogle({ idToken, acceptTerms: true })
-        }
-      } catch (e) {
-        processedIdToken.current = ''
-        Alert.alert(t('common:error'), t(`errors:${getApiErrorKey(e)}`))
-      } finally {
-        setParentGoogleBusy(false)
-      }
-    })()
-  }, [response, setParentGoogleBusy, t])
+  const webAppUrl = getWebAppUrl()
 
   const onGooglePress = async () => {
-    if (!request || oauthLocked) return
-    processedIdToken.current = ''
-    pendingGoogle.current = { mode, role }
+    if (oauthLocked || !webAppUrl) return
     setParentGoogleBusy(true)
     try {
-      const r = await promptAsync()
-      if (r.type !== 'success') {
-        pendingGoogle.current = null
-        setParentGoogleBusy(false)
-        return
+      const session = await openGoogleWebAuthSession({
+        mode,
+        role,
+        acceptTerms: mode === 'register',
+      })
+      if (!session?.idToken) return
+      if (mode === 'register') {
+        await loginWithGoogle({
+          idToken: session.idToken,
+          role,
+          acceptTerms: true,
+        })
+      } else {
+        await loginWithGoogle({ idToken: session.idToken, acceptTerms: true })
       }
-    } catch {
-      pendingGoogle.current = null
-      processedIdToken.current = ''
+    } catch (e) {
+      Alert.alert(t('common:error'), t(`errors:${getApiErrorKey(e)}`))
+    } finally {
       setParentGoogleBusy(false)
-      Alert.alert(t('common:error'), t('errors:default'))
     }
   }
 
   const registerOk = mode !== 'register' || termsAccepted === true
+  const canUseGoogle = Boolean(webAppUrl)
 
   return (
     <Pressable
       accessibilityRole="button"
-      disabled={!request || oauthLocked || !registerOk || googleBusy}
+      disabled={oauthLocked || !registerOk || googleBusy || !canUseGoogle}
       onPress={() => void onGooglePress()}
       style={({ pressed }) => [
         styles.button,
         { borderColor: c.border, backgroundColor: c.card },
         (pressed || googleBusy) && styles.pressed,
-        (!request || oauthLocked || !registerOk) && styles.disabled,
+        (oauthLocked || !registerOk || !canUseGoogle) && styles.disabled,
         style,
       ]}
     >
