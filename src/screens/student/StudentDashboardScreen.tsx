@@ -63,6 +63,9 @@ export function StudentDashboardScreen({ navigation }: Props) {
     [t, minimalComplete, docCount, navigation]
   )
   const onboardingDone = onboardingSteps.every((s) => s.done)
+  const completedSteps = useMemo(() => onboardingSteps.filter((step) => step.done).length, [onboardingSteps])
+  const setupProgress = onboardingSteps.length ? Math.round((completedSteps / onboardingSteps.length) * 100) : 0
+  const nextStep = onboardingSteps.find((step) => !step.done)
 
   const goExplore = useCallback(() => navigation.navigate('StudentHome', { path: '/student/universities' }), [navigation])
   const goApps = useCallback(() => navigation.navigate('StudentHome', { path: '/student/applications' }), [navigation])
@@ -95,6 +98,51 @@ export function StudentDashboardScreen({ navigation }: Props) {
       {loadingDash ? (
         <ActivityIndicator size="large" color={c.primary} style={styles.loader} />
       ) : null}
+
+      <AppCard flat style={styles.heroCard}>
+        <View style={styles.heroHeader}>
+          <View style={styles.heroTextWrap}>
+            <Text style={[styles.heroEyebrow, { color: c.textMuted }]}>{t('student:dashboardFocus', 'Focus now')}</Text>
+            <Text style={[styles.heroTitle, { color: c.text }]}>
+              {nextStep
+                ? t('student:mobileHeroSetup', 'Complete the basics and unlock better university matches')
+                : t('student:mobileHeroReady', 'You are ready to explore, compare, and apply with confidence')}
+            </Text>
+            <Text style={[styles.heroBody, { color: c.textMuted }]}>
+              {nextStep
+                ? t('student:mobileHeroSetupHint', 'Finish your profile and documents first so the next steps feel simple.')
+                : t('student:mobileHeroReadyHint', 'Use your recommendations below, then open applications and offers to keep momentum.')}
+            </Text>
+          </View>
+          <View style={[styles.heroBadge, { backgroundColor: c.primaryMuted }]}>
+            <Text style={[styles.heroBadgeText, { color: c.primary }]}>{setupProgress}%</Text>
+          </View>
+        </View>
+        <View style={[styles.heroProgressTrack, { backgroundColor: c.border }]}>
+          <View style={[styles.heroProgressFill, { width: `${Math.min(100, setupProgress)}%`, backgroundColor: c.primary }]} />
+        </View>
+        <View style={styles.heroActions}>
+          <Pressable style={[styles.primaryBtn, { backgroundColor: c.primary, flex: 1 }]} onPress={nextStep ? nextStep.onPress : goExplore}>
+            <Text style={[styles.primaryBtnText, { color: c.onPrimary }]}>
+              {nextStep ? nextStep.label : t('student:exploreUniversities')}
+            </Text>
+          </Pressable>
+          <Pressable style={[styles.secondaryBtn, { borderColor: c.border }]} onPress={goProfile}>
+            <Text style={[styles.secondaryBtnText, { color: c.text }]}>{t('student:navProfile', 'Profile')}</Text>
+          </Pressable>
+        </View>
+        <View style={styles.heroMeta}>
+          <Text style={[styles.heroMetaChip, { color: c.textMuted, borderColor: c.border }]}>
+            {t('student:activeApplications', 'Active applications')}: {activeApplications.length}
+          </Text>
+          <Text style={[styles.heroMetaChip, { color: c.textMuted, borderColor: c.border }]}>
+            {t('student:offers')}: {offers.length}
+          </Text>
+          <Text style={[styles.heroMetaChip, { color: c.textMuted, borderColor: c.border }]}>
+            {t('student:profileCompletion')}: {Math.round(profilePercent)}%
+          </Text>
+        </View>
+      </AppCard>
 
       {!onboardingDone && (
         <AppCard flat style={styles.block}>
@@ -254,13 +302,39 @@ function RecommendationCard({
 const styles = StyleSheet.create({
   loader: { marginVertical: space[6] },
   loaderSm: { marginVertical: space[4] },
+  heroCard: { marginBottom: space[4], borderWidth: 1 },
+  heroHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: space[3] },
+  heroTextWrap: { flex: 1, gap: space[2] },
+  heroEyebrow: { fontSize: fontSize.xs, fontWeight: fontWeight.semibold, textTransform: 'uppercase', letterSpacing: 1 },
+  heroTitle: { fontSize: fontSize.xl, fontWeight: fontWeight.bold, lineHeight: 30 },
+  heroBody: { fontSize: fontSize.sm, lineHeight: 20 },
+  heroBadge: {
+    minWidth: 64,
+    height: 64,
+    borderRadius: radii.xl,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: space[2],
+  },
+  heroBadgeText: { fontSize: fontSize.xl, fontWeight: fontWeight.bold },
+  heroProgressTrack: { height: 10, borderRadius: radii.full, overflow: 'hidden', marginTop: space[4] },
+  heroProgressFill: { height: '100%', borderRadius: radii.full },
+  heroActions: { flexDirection: 'row', gap: space[2], marginTop: space[4] },
+  heroMeta: { flexDirection: 'row', flexWrap: 'wrap', gap: space[2], marginTop: space[4] },
+  heroMetaChip: {
+    borderWidth: 1,
+    borderRadius: radii.full,
+    paddingHorizontal: space[3],
+    paddingVertical: space[1],
+    fontSize: fontSize.xs,
+  },
   block: { marginBottom: space[4] },
   cardTitle: { fontSize: fontSize.md, fontWeight: fontWeight.bold, marginBottom: space[2] },
   hint: { fontSize: fontSize.sm, marginBottom: space[2] },
   stepRow: { flexDirection: 'row', alignItems: 'center', gap: space[2], marginTop: space[2] },
   stepLink: { fontSize: fontSize.sm, flex: 1 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: space[3], marginBottom: space[6] },
-  statCard: { width: 158, minHeight: 100, marginBottom: 0 },
+  statCard: { width: '48%', minHeight: 108, marginBottom: 0 },
   statLabel: { fontSize: fontSize.xs, marginBottom: space[2] },
   statValue: { fontSize: fontSize['2xl'], fontWeight: fontWeight.bold },
   progressBg: { height: 8, borderRadius: radii.full, overflow: 'hidden', marginBottom: space[2] },
