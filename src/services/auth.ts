@@ -153,8 +153,11 @@ export async function resetPassword(token: string, newPassword: string): Promise
   await api.post('/auth/reset-password', { token, newPassword })
 }
 
-export async function setPassword(newPassword: string): Promise<void> {
-  await api.post('/auth/set-password', { newPassword })
+export async function setPassword(newPassword: string): Promise<LoginResponse> {
+  const { data } = await api.post<LoginResponse>('/auth/set-password', { newPassword })
+  useAuthStore.getState().setAuth(data.user, data.accessToken)
+  await saveAuth(data.user, data.accessToken, data.refreshToken ?? null)
+  return data
 }
 
 export async function getProfile(): Promise<User> {
@@ -181,8 +184,11 @@ export async function updateProfile(
   return data
 }
 
-export async function changePassword(currentPassword: string, newPassword: string): Promise<void> {
-  await api.post('/auth/change-password', { currentPassword, newPassword })
+export async function changePassword(currentPassword: string, newPassword: string): Promise<LoginResponse> {
+  const { data } = await api.post<LoginResponse>('/auth/change-password', { currentPassword, newPassword })
+  useAuthStore.getState().setAuth(data.user, data.accessToken)
+  await saveAuth(data.user, data.accessToken, data.refreshToken ?? null)
+  return data
 }
 
 export { getApiError }
