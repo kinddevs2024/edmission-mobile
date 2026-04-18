@@ -26,14 +26,9 @@ npm-debug.*
 yarn-debug.*
 yarn-error.*
 
-# macOS / Windows / Editor
+# macOS
 .DS_Store
-Thumbs.db
-desktop.ini
-.idea/
-.vscode/
 *.pem
-*.log
 
 # local env files
 .env
