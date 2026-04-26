@@ -10,6 +10,19 @@ export interface LoginPayload {
   password: string
 }
 
+export interface PhoneCodeStartPayload {
+  phone: string
+  role?: 'student' | 'university'
+  acceptTerms?: boolean
+  firstName?: string
+  lastName?: string
+  email?: string
+}
+
+export type PhoneCodeStartResult =
+  | { mode: 'login'; phone: string; delivery: 'telegram'; expiresAt: string }
+  | { mode: 'telegram_required' | 'register'; phone: string; sessionId: string; deepLink: string; expiresAt: string; message?: string }
+
 export interface RegisterPayload {
   email: string
   password: string
@@ -84,6 +97,21 @@ export async function login(payload: LoginPayload): Promise<LoginResponse> {
   useAuthStore.getState().logout()
   useAIChatStore.getState().resetSession()
   const { data } = await api.post<LoginResponse>('/auth/login', payload)
+  useAuthStore.getState().setAuth(data.user, data.accessToken, data.refreshToken ?? null)
+  await saveAuth(data.user, data.accessToken, data.refreshToken ?? null)
+  return data
+}
+
+export async function startPhoneCodeAuth(payload: PhoneCodeStartPayload): Promise<PhoneCodeStartResult> {
+  const { data } = await api.post<PhoneCodeStartResult>('/auth/phone/start', payload)
+  return data
+}
+
+export async function verifyPhoneCodeAuth(payload: { phone: string; code: string }): Promise<LoginResponse> {
+  await clearAuth()
+  useAuthStore.getState().logout()
+  useAIChatStore.getState().resetSession()
+  const { data } = await api.post<LoginResponse>('/auth/phone/verify', payload)
   useAuthStore.getState().setAuth(data.user, data.accessToken, data.refreshToken ?? null)
   await saveAuth(data.user, data.accessToken, data.refreshToken ?? null)
   return data

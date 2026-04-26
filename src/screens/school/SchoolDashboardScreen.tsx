@@ -11,6 +11,8 @@ import { getApiError } from '@/services/auth'
 import type { SchoolStackParamList, SchoolTabParamList } from '@/navigation/types'
 import { fontSize, fontWeight, radii, space, useThemeColors } from '@/theme'
 
+const DASHBOARD_PREVIEW_LIMIT = 5
+
 type Nav = CompositeNavigationProp<
   BottomTabNavigationProp<SchoolTabParamList, 'SchoolDashboard'>,
   StackNavigationProp<SchoolStackParamList>
@@ -32,8 +34,8 @@ export function SchoolDashboardScreen() {
     setError('')
     Promise.all([
       getCounsellorProfile(),
-      listMyStudents({ page: 1, limit: 5 }),
-      listJoinRequests({ status: 'pending', page: 1, limit: 5 }),
+      listMyStudents({ page: 1, limit: DASHBOARD_PREVIEW_LIMIT }),
+      listJoinRequests({ status: 'pending', page: 1, limit: DASHBOARD_PREVIEW_LIMIT }),
       listJoinRequests({ status: 'pending', page: 1, limit: 1 }),
     ])
       .then(([profile, studentsRes, requestsRes, pendingCountRes]) => {
