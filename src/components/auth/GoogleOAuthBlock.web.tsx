@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef } from 'react'
-import { Alert, Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native'
+import { Alert, Image, Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native'
 import {
   makeRedirectUri,
   ResponseType,
@@ -27,6 +27,7 @@ export function GoogleOAuthBlock({
   oauthLocked,
   setParentGoogleBusy,
   termsAccepted,
+  compact,
   style,
 }: {
   mode: Mode
@@ -36,6 +37,7 @@ export function GoogleOAuthBlock({
   setParentGoogleBusy: (v: boolean) => void
   /** Register: must match front — button disabled until terms accepted */
   termsAccepted?: boolean
+  compact?: boolean
   style?: StyleProp<ViewStyle>
 }) {
   const { t } = useTranslation(['auth', 'common', 'errors'])
@@ -119,27 +121,34 @@ export function GoogleOAuthBlock({
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityLabel={t('auth:continueWithGoogle')}
       disabled={disabled || googleBusy}
       onPress={() => void onPress()}
       style={({ pressed }) => [
-        styles.button,
+        compact ? styles.compactButton : styles.button,
         { borderColor: c.border, backgroundColor: c.card },
         (pressed || googleBusy) && styles.pressed,
         disabled && styles.disabled,
         style,
       ]}
     >
-      <View style={styles.row}>
-        <View style={styles.googleBadge}>
-          <Text style={styles.googleBadgeText}>G</Text>
+      {compact ? (
+        <Image source={googleLogo} resizeMode="contain" style={styles.logo} />
+      ) : (
+        <View style={styles.row}>
+          <View style={styles.googleBadge}>
+            <Image source={googleLogo} resizeMode="contain" style={styles.badgeLogo} />
+          </View>
+          <Text style={[styles.label, { color: c.text }]}>
+            {googleBusy ? t('common:loading') : t('auth:continueWithGoogle')}
+          </Text>
         </View>
-        <Text style={[styles.label, { color: c.text }]}>
-          {googleBusy ? t('common:loading') : t('auth:continueWithGoogle')}
-        </Text>
-      </View>
+      )}
     </Pressable>
   )
 }
+
+const googleLogo = require('../../../assets/google-logo.webp')
 
 const styles = StyleSheet.create({
   button: {
@@ -149,6 +158,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: space[3],
     justifyContent: 'center',
     marginBottom: space[2],
+  },
+  compactButton: {
+    width: 44,
+    height: 44,
+    minWidth: 44,
+    borderWidth: 1,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logo: {
+    width: 21,
+    height: 21,
   },
   row: { flexDirection: 'row', alignItems: 'center', gap: space[2] },
   googleBadge: {
@@ -162,6 +184,7 @@ const styles = StyleSheet.create({
     borderColor: '#d1d5db',
   },
   googleBadgeText: { color: '#4285F4', fontSize: fontSize.sm, fontWeight: fontWeight.bold },
+  badgeLogo: { width: 18, height: 18 },
   label: { flex: 1, textAlign: 'center', fontSize: fontSize.base, fontWeight: fontWeight.semibold },
   pressed: { opacity: 0.92 },
   disabled: { opacity: 0.55 },

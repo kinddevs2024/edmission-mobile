@@ -119,10 +119,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
+    paddingHorizontal: 2,
   },
   input: {
     flex: 1,
-    paddingVertical: space[3],
+    paddingVertical: space[3.5],
     paddingHorizontal: space[3.5],
   },
   toggle: { paddingRight: space[3] },

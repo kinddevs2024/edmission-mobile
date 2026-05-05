@@ -21,6 +21,7 @@ export type PlatformWebViewProps = {
   source: { uri: string }
   style?: ViewStyle
   injectedJavaScriptBeforeContentLoaded?: string
+  injectedJavaScript?: string
   /** Web only: seed auth via postMessage to iframe (preferred over eval). */
   webEmbedAuthSeed?: WebEmbedAuthSeed | null
   onError?: () => void
@@ -32,6 +33,7 @@ export type PlatformWebViewProps = {
   renderLoading?: () => ReactElement
   onMessage?: (event: WebViewMessageEvent) => void
   onNavigationStateChange?: (navState: WebViewNavigation) => void
+  onShouldStartLoadWithRequest?: (request: WebViewNavigation) => boolean
   pullToRefreshEnabled?: boolean
   nativeRef?: RefObject<WebView | null>
   /** Remount when the URL changes (same as `key` on native WebView). */
@@ -139,6 +141,7 @@ export function PlatformWebView({
   source,
   style,
   injectedJavaScriptBeforeContentLoaded,
+  injectedJavaScript,
   webEmbedAuthSeed,
   onError,
   onHttpError,
@@ -149,6 +152,7 @@ export function PlatformWebView({
   renderLoading,
   onMessage,
   onNavigationStateChange,
+  onShouldStartLoadWithRequest,
   pullToRefreshEnabled,
   nativeRef,
 }: PlatformWebViewProps) {
@@ -173,6 +177,7 @@ export function PlatformWebView({
       key={webKey ?? source.uri}
       source={source}
       injectedJavaScriptBeforeContentLoaded={injectedJavaScriptBeforeContentLoaded}
+      injectedJavaScript={injectedJavaScript}
       style={style}
       onError={onError}
       onHttpError={onHttpError}
@@ -182,6 +187,7 @@ export function PlatformWebView({
       pullToRefreshEnabled={pullToRefreshEnabled}
       onMessage={onMessage}
       onNavigationStateChange={onNavigationStateChange}
+      onShouldStartLoadWithRequest={onShouldStartLoadWithRequest}
       startInLoadingState={startInLoadingState}
       renderLoading={renderLoading}
     />

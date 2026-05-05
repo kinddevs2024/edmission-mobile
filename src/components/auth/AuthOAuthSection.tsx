@@ -1,7 +1,7 @@
-import { useState } from 'react'
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native'
+import { useEffect, useRef, useState } from 'react'
+import { Alert, Image, Linking, Pressable, StyleSheet, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
-import { loginWithYandex } from '@/services/auth'
+import { loginWithYandex, startTelegramAuth, verifyTelegramAuthReady } from '@/services/auth'
 import { openYandexOAuthSession } from '@/services/yandexAuthSession'
 import {
   getYandexClientId,
@@ -10,13 +10,17 @@ import {
 } from '@/config/oauth'
 import { getApiErrorKey } from '@/utils/apiErrorI18n'
 import { GoogleOAuthBlock } from '@/components/auth/GoogleOAuthBlock'
-import { fontSize, fontWeight, radii, space, useThemeColors } from '@/theme'
+import { radii, space, useThemeColors } from '@/theme'
 
 type Layout = 'footer' | 'inline'
 
+const yandexLogo =
+  'https://upload.wikimedia.org/wikipedia/commons/thumb/5/58/Yandex_icon.svg/1280px-Yandex_icon.svg.png'
+const telegramLogo =
+  'https://upload.wikimedia.org/wikipedia/commons/thumb/8/83/Telegram_2019_Logo.svg/250px-Telegram_2019_Logo.svg.png'
+
 export function AuthOAuthSection({
   mode,
-  layout,
   role = 'student',
   acceptTerms = true,
 }: {
@@ -29,14 +33,19 @@ export function AuthOAuthSection({
   const c = useThemeColors()
   const [googleBusy, setGoogleBusy] = useState(false)
   const [yandexBusy, setYandexBusy] = useState(false)
+  const [telegramBusy, setTelegramBusy] = useState(false)
+  const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const oauthLocked = googleBusy || yandexBusy
-
+  const oauthLocked = googleBusy || yandexBusy || telegramBusy
   const showGoogle = isGoogleOAuthConfigured()
   const yandexId = getYandexClientId()
   const showYandex = isYandexOAuthConfigured()
 
-  if (!showGoogle && !showYandex) return null
+  useEffect(() => {
+    return () => {
+      if (pollRef.current) clearTimeout(pollRef.current)
+    }
+  }, [])
 
   const ensureRegisterTerms = (): boolean => {
     if (mode !== 'register') return true
@@ -57,19 +66,11 @@ export function AuthOAuthSection({
         flow: mode,
       })
       if (!session) return
-      if (mode === 'register') {
-        await loginWithYandex({
-          code: session.code,
-          redirectUri: session.redirectUri,
-          role,
-          acceptTerms: true,
-        })
-      } else {
-        await loginWithYandex({
-          code: session.code,
-          redirectUri: session.redirectUri,
-        })
-      }
+      await loginWithYandex({
+        code: session.code,
+        redirectUri: session.redirectUri,
+        ...(mode === 'register' ? { role, acceptTerms: true } : {}),
+      })
     } catch (e) {
       Alert.alert(t('common:error'), t(`errors:${getApiErrorKey(e)}`))
     } finally {
@@ -77,187 +78,126 @@ export function AuthOAuthSection({
     }
   }
 
-  const loginHint =
-    showGoogle && showYandex
-      ? t('auth:oauthLoginHint', 'By continuing you agree to our Terms and Privacy Policy.')
-      : showYandex
-        ? t('auth:yandexLoginHint', 'By continuing with Yandex you agree to our Terms and Privacy Policy.')
-        : t('auth:googleLoginHint')
-
-  const registerHint =
-    acceptTerms
-      ? showGoogle && showYandex
-        ? t('auth:oauthContinueHint', 'Continue with Google or Yandex.')
-        : showYandex
-          ? t('auth:yandexContinueHint', 'Continue with Yandex.')
-          : t('auth:googleContinueHint', 'Continue with Google.')
-      : showGoogle && showYandex
-        ? t(
-            'auth:oauthRegisterHint',
-            'Accept the terms above, then continue with Google or Yandex.'
-          )
-        : showYandex
-          ? t('auth:yandexRegisterHint', 'Accept the terms above, then continue with Yandex.')
-          : t('auth:googleRegisterHint')
-
-  const yandexDisabled =
-    oauthLocked || (mode === 'register' && !acceptTerms)
-
-  const yandexBlock = showYandex ? (
-    <View
-      style={
-        mode === 'register' && !acceptTerms
-          ? [styles.yandexDim, { opacity: 0.55 }]
-          : undefined
+  const pollTelegramReady = (sessionId: string, attempt = 0) => {
+    if (attempt >= 30) {
+      setTelegramBusy(false)
+      return
+    }
+    pollRef.current = setTimeout(async () => {
+      try {
+        const result = await verifyTelegramAuthReady({ sessionId })
+        if (result) {
+          setTelegramBusy(false)
+          return
+        }
+      } catch {
+        setTelegramBusy(false)
+        return
       }
-    >
-      <Pressable
-        accessibilityRole="button"
-        disabled={yandexDisabled || yandexBusy}
-        onPress={() => void onYandexPress()}
-        style={({ pressed }) => [
-          styles.yandexBtn,
-          (pressed || yandexBusy) && styles.yandexPressed,
-          (yandexDisabled || yandexBusy) && styles.yandexDisabled,
-          styles.btn,
-        ]}
-      >
-        <View style={styles.yandexRow}>
-          <View style={styles.yandexBadgeLeft}>
-            <Text style={styles.yandexBadgeLeftText}>Y</Text>
-          </View>
-          <Text style={styles.yandexLabel}>
-            {yandexBusy
-              ? t('common:loading')
-              : mode === 'register'
-                ? t('auth:registerWithYandexId')
-                : t('auth:signInWithYandexId')}
-          </Text>
-          <View style={styles.yandexBadgeRight}>
-            <View style={styles.yandexBadgeDot} />
-          </View>
-        </View>
-      </Pressable>
-    </View>
-  ) : null
-
-  const googleBlock = showGoogle ? (
-    <GoogleOAuthBlock
-      mode={mode}
-      role={role}
-      googleBusy={googleBusy}
-      oauthLocked={oauthLocked}
-      setParentGoogleBusy={setGoogleBusy}
-      termsAccepted={mode === 'register' ? acceptTerms : true}
-      style={styles.btn}
-    />
-  ) : null
-
-  if (layout === 'footer') {
-    return (
-      <View style={[styles.footer, { borderTopColor: c.border }]}>
-        <Text style={[styles.footerHint, { color: c.textMuted }]}>{loginHint}</Text>
-        <View style={styles.oauthStack}>
-          {googleBlock}
-          {yandexBlock}
-        </View>
-      </View>
-    )
+      pollTelegramReady(sessionId, attempt + 1)
+    }, 2000)
   }
 
+  const onTelegramPress = async () => {
+    if (oauthLocked) return
+    if (!ensureRegisterTerms()) return
+    if (pollRef.current) clearTimeout(pollRef.current)
+    setTelegramBusy(true)
+    try {
+      const session = await startTelegramAuth({ role })
+      await Linking.openURL(session.deepLink)
+      pollTelegramReady(session.sessionId)
+    } catch (e) {
+      setTelegramBusy(false)
+      Alert.alert(t('common:error'), t(`errors:${getApiErrorKey(e)}`))
+    }
+  }
+
+  const socialDisabled = oauthLocked || (mode === 'register' && !acceptTerms)
+
   return (
-    <View style={styles.inlineWrap}>
-      <View style={styles.orWrap}>
-        <View style={[styles.orLine, { borderTopColor: c.border }]} />
-        <Text style={[styles.orLabel, { color: c.textMuted, backgroundColor: c.card }]}>
-          {t('auth:orDivider')}
-        </Text>
+    <View style={styles.wrap}>
+      <View style={styles.divider}>
+        <View style={[styles.line, { backgroundColor: c.border }]} />
       </View>
-      <Text style={[styles.inlineHint, { color: c.textMuted }]}>{registerHint}</Text>
-      <View style={styles.oauthStack}>
-        {googleBlock}
-        {yandexBlock}
+      <View style={styles.row}>
+        {showGoogle ? (
+          <GoogleOAuthBlock
+            mode={mode}
+            role={role}
+            googleBusy={googleBusy}
+            oauthLocked={oauthLocked}
+            setParentGoogleBusy={setGoogleBusy}
+            termsAccepted={mode === 'register' ? acceptTerms : true}
+            compact
+          />
+        ) : null}
+        {showYandex ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={mode === 'register' ? t('auth:registerWithYandexId') : t('auth:signInWithYandexId')}
+            disabled={socialDisabled || yandexBusy}
+            onPress={() => void onYandexPress()}
+            style={({ pressed }) => [
+              styles.iconButton,
+              { borderColor: c.border, backgroundColor: c.card },
+              (pressed || yandexBusy) && styles.pressed,
+              (socialDisabled || yandexBusy) && styles.disabled,
+            ]}
+          >
+            <Image source={{ uri: yandexLogo }} resizeMode="contain" style={styles.logo} />
+          </Pressable>
+        ) : null}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t('auth:continueWithTelegram', 'Continue with Telegram')}
+          disabled={socialDisabled || telegramBusy}
+          onPress={() => void onTelegramPress()}
+          style={({ pressed }) => [
+            styles.iconButton,
+            { borderColor: c.border, backgroundColor: c.card },
+            (pressed || telegramBusy) && styles.pressed,
+            (socialDisabled || telegramBusy) && styles.disabled,
+          ]}
+        >
+          <Image source={{ uri: telegramLogo }} resizeMode="contain" style={styles.logo} />
+        </Pressable>
       </View>
     </View>
   )
 }
 
 const styles = StyleSheet.create({
-  footer: {
-    marginTop: space[6],
-    paddingTop: space[6],
-    borderTopWidth: StyleSheet.hairlineWidth,
+  wrap: {
+    marginTop: space[5],
   },
-  oauthStack: { marginTop: space[2] },
-  footerHint: {
-    textAlign: 'center',
-    fontSize: fontSize.xs,
-    lineHeight: 18,
-    marginBottom: space[1],
+  divider: {
+    alignItems: 'center',
+    marginBottom: space[4],
   },
-  inlineWrap: {
-    paddingTop: space[1],
+  line: {
+    width: '100%',
+    height: StyleSheet.hairlineWidth,
   },
-  orWrap: {
-    position: 'relative',
+  row: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: space[2],
-    marginBottom: space[1],
+    gap: space[3],
   },
-  orLine: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: '50%',
-    borderTopWidth: StyleSheet.hairlineWidth,
-  },
-  orLabel: {
-    fontSize: fontSize.xs,
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
-    paddingHorizontal: space[3],
-  },
-  inlineHint: {
-    fontSize: fontSize.xs,
-    lineHeight: 18,
-    marginBottom: space[1],
-  },
-  btn: { marginBottom: space[2] },
-  yandexDim: {},
-  yandexBtn: {
-    minHeight: 48,
-    borderRadius: radii.md,
-    backgroundColor: '#101418',
-    paddingHorizontal: space[3],
-    justifyContent: 'center',
-  },
-  yandexRow: { flexDirection: 'row', alignItems: 'center', gap: space[2] },
-  yandexBadgeLeft: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: '#FC3F1D',
+  iconButton: {
+    width: 44,
+    height: 44,
+    minWidth: 44,
+    borderRadius: radii.full,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  yandexBadgeLeftText: { color: '#fff', fontSize: 12, fontWeight: fontWeight.bold },
-  yandexLabel: {
-    flex: 1,
-    textAlign: 'center',
-    color: '#fff',
-    fontSize: fontSize.base,
-    fontWeight: fontWeight.semibold,
+  logo: {
+    width: 21,
+    height: 21,
   },
-  yandexBadgeRight: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: '#2c313a',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  yandexBadgeDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#fff' },
-  yandexPressed: { opacity: 0.93 },
-  yandexDisabled: { opacity: 0.55 },
+  pressed: { opacity: 0.9 },
+  disabled: { opacity: 0.5 },
 })

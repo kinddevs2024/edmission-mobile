@@ -14,6 +14,7 @@ export function AuthCard({ children }: { children: ReactNode }) {
         },
       ]}
     >
+      <View style={[styles.accent, { backgroundColor: c.primary }]} />
       {children}
     </View>
   )
@@ -25,8 +26,16 @@ const styles = StyleSheet.create({
     maxWidth: 480,
     alignSelf: 'center',
     borderWidth: 1,
-    borderRadius: radii.lg,
-    padding: space[5],
+    borderRadius: radii.md,
+    padding: space[4],
+    overflow: 'hidden',
     ...shadowCard(),
+  },
+  accent: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 4,
   },
 })

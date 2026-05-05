@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -23,6 +23,7 @@ import type { AuthStackParamList } from '@/navigation/types'
 
 type Props = StackScreenProps<AuthStackParamList, 'Register'>
 type FlowStep = 'email' | 'password' | 'code'
+const steps: FlowStep[] = ['email', 'password', 'code']
 
 export function RegisterScreen({ navigation }: Props) {
   const { t } = useTranslation(['common', 'auth', 'errors'])
@@ -77,6 +78,7 @@ export function RegisterScreen({ navigation }: Props) {
   })
 
   const emailValue = watch('email')?.trim() ?? ''
+  const stepIndex = steps.indexOf(step)
 
   useEffect(() => {
     if (step !== 'code' || resendCooldown <= 0) return
@@ -160,13 +162,27 @@ export function RegisterScreen({ navigation }: Props) {
 
   return (
     <ScreenScaffold scroll contentContainerStyle={styles.scrollContent}>
+      <View style={styles.brand}>
+        <Image source={require('../../../assets/icon-square.png')} resizeMode="contain" style={styles.logo} />
+        <Text style={[styles.brandText, { color: c.text }]}>Edmission</Text>
+      </View>
       <AuthCard>
+        <View style={styles.stepper} accessibilityRole="progressbar">
+          {steps.map((item, index) => (
+            <View
+              key={item}
+              style={[
+                styles.stepDot,
+                {
+                  backgroundColor: index <= stepIndex ? c.primary : c.border,
+                },
+              ]}
+            />
+          ))}
+        </View>
         {step === 'email' ? (
           <>
             <Text style={[styles.title, { color: c.text }]}>{t('auth:stepEmailTitle', 'Start with your email')}</Text>
-            <Text style={[styles.muted, { color: c.textMuted }]}>
-              {t('auth:stepEmailHint', 'Use the email address you want to use for sign in.')}
-            </Text>
 
             <Controller
               control={control}
@@ -185,7 +201,7 @@ export function RegisterScreen({ navigation }: Props) {
               )}
             />
 
-            {submitError ? <Text style={[styles.err, { color: c.danger }]}>{submitError}</Text> : null}
+            {submitError ? <Text style={[styles.err, { color: c.danger, backgroundColor: `${c.danger}14` }]}>{submitError}</Text> : null}
 
             <AppButton title={t('common:next')} onPress={() => void goToPasswordStep()} />
 
@@ -207,9 +223,6 @@ export function RegisterScreen({ navigation }: Props) {
         {step === 'password' ? (
           <>
             <Text style={[styles.title, { color: c.text }]}>{t('auth:stepPasswordTitle', 'Create your password')}</Text>
-            <Text style={[styles.muted, { color: c.textMuted }]}>
-              {t('auth:stepPasswordHint', 'Set a strong password and accept the terms to continue.')}
-            </Text>
 
             <View style={[styles.summaryCard, { borderColor: c.border, backgroundColor: c.background }]}>
               <View style={styles.summaryCopy}>
@@ -277,10 +290,10 @@ export function RegisterScreen({ navigation }: Props) {
               )}
             />
             {errors.acceptTerms ? (
-              <Text style={[styles.err, { color: c.danger }]}>{errors.acceptTerms.message}</Text>
+              <Text style={[styles.err, { color: c.danger, backgroundColor: `${c.danger}14` }]}>{errors.acceptTerms.message}</Text>
             ) : null}
 
-            {submitError ? <Text style={[styles.err, { color: c.danger }]}>{submitError}</Text> : null}
+            {submitError ? <Text style={[styles.err, { color: c.danger, backgroundColor: `${c.danger}14` }]}>{submitError}</Text> : null}
 
             <AppButton title={t('auth:createAccount', 'Create account')} loading={loading} onPress={() => void onCreateAccount()} />
 
@@ -346,13 +359,39 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     justifyContent: 'center',
-    paddingTop: space[4],
+    paddingTop: space[6],
     paddingBottom: space[6],
+  },
+  brand: {
+    alignItems: 'center',
+    marginBottom: space[4],
+    gap: space[2],
+  },
+  logo: {
+    width: 68,
+    height: 68,
+    borderRadius: 16,
+  },
+  brandText: {
+    fontSize: 24,
+    fontWeight: fontWeight.bold,
+  },
+  stepper: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: space[1],
+    marginBottom: space[4],
+    marginTop: space[1],
+  },
+  stepDot: {
+    width: 26,
+    height: 4,
+    borderRadius: 4,
   },
   title: {
     fontSize: fontSize['2xl'],
     fontWeight: fontWeight.bold,
-    marginBottom: space[2],
+    marginBottom: space[5],
     textAlign: 'center',
   },
   muted: {
@@ -408,6 +447,11 @@ const styles = StyleSheet.create({
     marginBottom: space[2],
     fontSize: fontSize.sm,
     textAlign: 'center',
+    lineHeight: 20,
+    paddingHorizontal: space[3],
+    paddingVertical: space[2],
+    borderRadius: 8,
+    overflow: 'hidden',
   },
   bottomLinks: {
     marginTop: space[3],

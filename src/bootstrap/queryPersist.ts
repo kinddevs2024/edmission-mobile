@@ -7,12 +7,17 @@ const PERSIST_ROOT_KEYS = new Set([
   'student-offers',
   'student-universities',
   'student-recommendations-preview',
+  'student-schools',
   'issued-documents-student',
+  'issued-document',
   'compare-options',
   'ai-status',
   'student-school-invitations',
   'student-interested-university-ids',
   'student-interest-limit',
+  'notifications',
+  'university-detail',
+  'trustedUniversityLogos',
 ])
 
 /** Persist list-style queries for offline / fast restore; skip until success. */

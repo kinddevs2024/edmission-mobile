@@ -2,10 +2,11 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Platform, StyleSheet, View, useColorScheme } from 'react-native'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import NetInfo from '@react-native-community/netinfo'
 import { DarkTheme, DefaultTheme, NavigationContainer } from '@react-navigation/native'
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client'
 import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister'
-import { QueryClientProvider } from '@tanstack/react-query'
+import { onlineManager } from '@tanstack/react-query'
 import { I18nextProvider } from 'react-i18next'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { applyWebViewportStyles } from '@/bootstrap/webViewport'
@@ -19,10 +20,25 @@ import { PushRegistration } from '@/bootstrap/PushRegistration'
 import { useAuthStore } from '@/store/authStore'
 
 const RQ_PERSIST_KEY = 'edmission-rq-cache'
+const RQ_MAX_AGE = 7 * 24 * 60 * 60 * 1000
+
+function OnlineSyncBridge() {
+  useEffect(() => {
+    return NetInfo.addEventListener((state) => {
+      const online = state.isConnected !== false && state.isInternetReachable !== false
+      onlineManager.setOnline(online)
+      if (online) {
+        void queryClient.resumePausedMutations()
+        void queryClient.invalidateQueries()
+      }
+    })
+  }, [])
+
+  return null
+}
 
 function PersistingApp({ children }: { children: ReactNode }) {
   const userId = useAuthStore((s) => s.user?.id ?? 'anon')
-  const canPersist = Platform.OS === 'web'
   const persister = useMemo(
     () =>
       createAsyncStoragePersister({
@@ -32,22 +48,19 @@ function PersistingApp({ children }: { children: ReactNode }) {
     []
   )
 
-  if (!canPersist) {
-    return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-  }
-
   return (
     <PersistQueryClientProvider
       client={queryClient}
       persistOptions={{
         persister,
-        maxAge: 24 * 60 * 60 * 1000,
+        maxAge: RQ_MAX_AGE,
         buster: userId,
         dehydrateOptions: {
           shouldDehydrateQuery: shouldPersistQuery,
         },
       }}
     >
+      <OnlineSyncBridge />
       {children}
     </PersistQueryClientProvider>
   )

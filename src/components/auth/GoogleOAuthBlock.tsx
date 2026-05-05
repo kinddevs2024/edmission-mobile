@@ -11,6 +11,7 @@ export function GoogleOAuthBlock(_props: {
   oauthLocked: boolean
   setParentGoogleBusy: (v: boolean) => void
   termsAccepted?: boolean
+  compact?: boolean
   style?: StyleProp<ViewStyle>
 }): null {
   return null

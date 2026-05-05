@@ -16,6 +16,7 @@ import { PlaceholderScreen } from '@/screens/PlaceholderScreen'
 import { PrivacyScreen } from '@/screens/common/PrivacyScreen'
 import { useThemeColors } from '@/theme'
 import { STORAGE_KEY } from '@/i18n/config'
+import { AUTH_RETURN_TO_LANDING_KEY, AUTH_RETURN_TO_LOGIN_KEY } from '@/services/auth'
 import type { AuthStackParamList } from '@/navigation/types'
 
 const Stack = createStackNavigator<AuthStackParamList>()
@@ -29,12 +30,20 @@ export function AuthNavigator() {
 
   useEffect(() => {
     ;(async () => {
-      const [hasLaunched, savedLng] = await Promise.all([
+      const [hasLaunched, savedLng, returnToLanding, returnToLogin] = await Promise.all([
         AsyncStorage.getItem(HAS_LAUNCHED_KEY),
         AsyncStorage.getItem(STORAGE_KEY),
+        AsyncStorage.getItem(AUTH_RETURN_TO_LANDING_KEY),
+        AsyncStorage.getItem(AUTH_RETURN_TO_LOGIN_KEY),
       ])
-      if (hasLaunched && savedLng) {
+      if (returnToLogin === '1') {
+        await AsyncStorage.removeItem(AUTH_RETURN_TO_LOGIN_KEY)
         setInitialRoute('Login')
+      } else if (returnToLanding === '1') {
+        await AsyncStorage.removeItem(AUTH_RETURN_TO_LANDING_KEY)
+        setInitialRoute('Landing')
+      } else if (hasLaunched && savedLng) {
+        setInitialRoute('Landing')
       } else {
         await AsyncStorage.setItem(HAS_LAUNCHED_KEY, '1')
         setInitialRoute('ChooseLanguage')

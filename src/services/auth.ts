@@ -1,9 +1,13 @@
 import { api, getApiError } from './api'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import type { User, LoginResponse } from '@/types/user'
 import { useAuthStore } from '@/store/authStore'
 import { useAIChatStore } from '@/store/aiChatStore'
 import { saveAuth, clearAuth, getStoredRefreshToken } from './authPersistence'
 import { queryClient } from '@/bootstrap/queryClient'
+
+export const AUTH_RETURN_TO_LANDING_KEY = 'edmission_auth_return_to_landing'
+export const AUTH_RETURN_TO_LOGIN_KEY = 'edmission_auth_return_to_login'
 
 export interface LoginPayload {
   email: string
@@ -22,6 +26,12 @@ export interface PhoneCodeStartPayload {
 export type PhoneCodeStartResult =
   | { mode: 'login'; phone: string; delivery: 'telegram'; expiresAt: string }
   | { mode: 'telegram_required' | 'register'; phone: string; sessionId: string; deepLink: string; expiresAt: string; message?: string }
+
+export interface TelegramAuthStartResult {
+  sessionId: string
+  deepLink: string
+  expiresAt: string
+}
 
 export interface RegisterPayload {
   email: string
@@ -102,8 +112,36 @@ export async function login(payload: LoginPayload): Promise<LoginResponse> {
   return data
 }
 
+export async function createMobileWebAuthSession(): Promise<{ token: string; expiresAt: string }> {
+  const { data } = await api.post<{ token: string; expiresAt: string }>('/auth/mobile-web/start')
+  return data
+}
+
 export async function startPhoneCodeAuth(payload: PhoneCodeStartPayload): Promise<PhoneCodeStartResult> {
   const { data } = await api.post<PhoneCodeStartResult>('/auth/phone/start', payload)
+  return data
+}
+
+export async function startTelegramAuth(payload?: { role?: 'student' | 'university' }): Promise<TelegramAuthStartResult> {
+  const { data } = await api.post<TelegramAuthStartResult>('/auth/telegram/start', payload ?? {})
+  return data
+}
+
+export async function verifyTelegramAuthReady(payload: { sessionId: string }): Promise<LoginResponse | null> {
+  const response = await api.post<LoginResponse | { ready: false }>(
+    '/auth/telegram/verify-ready',
+    payload,
+    { validateStatus: (status) => (status >= 200 && status < 300) || status === 202 }
+  )
+  if (response.status === 202 || ('ready' in response.data && response.data.ready === false)) {
+    return null
+  }
+  const data = response.data as LoginResponse
+  await clearAuth()
+  useAuthStore.getState().logout()
+  useAIChatStore.getState().resetSession()
+  useAuthStore.getState().setAuth(data.user, data.accessToken, data.refreshToken ?? null)
+  await saveAuth(data.user, data.accessToken, data.refreshToken ?? null)
   return data
 }
 
@@ -149,7 +187,14 @@ export async function resendVerificationCode(email: string): Promise<void> {
   await api.post('/auth/verify-email/resend', { email })
 }
 
-async function applyLoggedOutState(): Promise<void> {
+async function applyLoggedOutState(target: 'landing' | 'login' = 'landing'): Promise<void> {
+  if (target === 'login') {
+    await AsyncStorage.setItem(AUTH_RETURN_TO_LOGIN_KEY, '1')
+    await AsyncStorage.removeItem(AUTH_RETURN_TO_LANDING_KEY)
+  } else {
+    await AsyncStorage.setItem(AUTH_RETURN_TO_LANDING_KEY, '1')
+    await AsyncStorage.removeItem(AUTH_RETURN_TO_LOGIN_KEY)
+  }
   await clearAuth()
   queryClient.clear()
   useAuthStore.getState().logout()
@@ -165,8 +210,8 @@ export async function logout(): Promise<void> {
   }
 }
 
-export async function logoutLocally(): Promise<void> {
-  await applyLoggedOutState()
+export async function logoutLocally(target: 'landing' | 'login' = 'landing'): Promise<void> {
+  await applyLoggedOutState(target)
 }
 
 export async function forgotPassword(email: string): Promise<void> {

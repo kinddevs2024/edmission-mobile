@@ -6,7 +6,6 @@ import {
   Pressable,
   StyleSheet,
   Text,
-  useColorScheme,
   useWindowDimensions,
   View,
 } from 'react-native'
@@ -17,232 +16,256 @@ import { PlatformWebView } from '@/components/web/PlatformWebView'
 import { getWebAppOrigin } from '@/config/webApp'
 import { useAuth } from '@/hooks/useAuth'
 import { getStoredRefreshToken } from '@/services/authPersistence'
-import { logoutLocally } from '@/services/auth'
+import { createMobileWebAuthSession, logoutLocally } from '@/services/auth'
 import { fontSize, fontWeight, space, useThemeColors } from '@/theme'
 
-/** Must match edmission-front `src/services/authPersistence.ts` keys. */
-function buildAuthInjectionScript(
-  userJson: string,
-  accessToken: string,
-  refreshToken: string | null,
-  theme: 'light' | 'dark'
-): string {
-  const rtLine =
-    refreshToken != null && refreshToken !== ''
-      ? `localStorage.setItem('auth_refreshToken', ${JSON.stringify(refreshToken)});`
-      : ''
+export interface EmbeddedWebAppScreenProps {
+  /** Path on the SPA, e.g. `/student/dashboard` */
+  webPath: string
+  onCloseRequest?: () => void
+}
+
+function safeWebPath(raw: string): string {
+  const value = raw.startsWith('/') ? raw : `/${raw}`
+  if (value.startsWith('//')) return '/student/dashboard'
+  if (value === '/login' || value.startsWith('/login?')) return '/student/dashboard'
+  return value
+}
+
+function normalizePathname(pathname: string): string {
+  const path = pathname.replace(/\/+$/, '')
+  return path || '/'
+}
+
+function isWebsiteAuthPath(path: string): boolean {
+  return (
+    path === '/login' ||
+    path === '/login-phone' ||
+    path === '/sing-in' ||
+    path === '/register' ||
+    path === '/register-phone'
+  )
+}
+
+function buildNativeShellScript(authPayload: {
+  userJson: string
+  accessToken: string
+  refreshToken: string | null
+} | null): string {
+  const authLines = authPayload
+    ? `
+      try {
+        localStorage.setItem('auth_user', ${JSON.stringify(authPayload.userJson)});
+        localStorage.setItem('auth_accessToken', ${JSON.stringify(authPayload.accessToken)});
+        ${
+          authPayload.refreshToken
+            ? `localStorage.setItem('auth_refreshToken', ${JSON.stringify(authPayload.refreshToken)});`
+            : "localStorage.removeItem('auth_refreshToken');"
+        }
+        localStorage.setItem('auth_lastActivityAt', String(Date.now()));
+      } catch (e) {}
+    `
+    : ''
+
   return `
     (function() {
       try {
-        var AUTH_KEYS = ['auth_user', 'auth_accessToken', 'auth_refreshToken', 'auth_lastActivityAt'];
-        var postAuthState = function() {
+        var post = function(type, data) {
           try {
             if (window.ReactNativeWebView && window.ReactNativeWebView.postMessage) {
-              window.ReactNativeWebView.postMessage(JSON.stringify({
-                type: 'edmission.auth',
-                user: localStorage.getItem('auth_user'),
-                accessToken: localStorage.getItem('auth_accessToken'),
-                refreshToken: localStorage.getItem('auth_refreshToken'),
-                lastActivityAt: localStorage.getItem('auth_lastActivityAt')
-              }));
+              window.ReactNativeWebView.postMessage(JSON.stringify(Object.assign({ type: type }, data || {})));
             }
           } catch (e) {}
         };
-        var postNavState = function() {
-          try {
-            if (window.ReactNativeWebView && window.ReactNativeWebView.postMessage) {
-              var depth = 0;
-              try {
-                depth = Number((window.__edmissionNativeNavBridge && window.__edmissionNativeNavBridge.depth) || 0);
-              } catch (e) {}
-              window.ReactNativeWebView.postMessage(JSON.stringify({
-                type: 'edmission.nav',
-                canGoBack: depth > 0,
-                url: String(location.href || '')
-              }));
-            }
-          } catch (e) {}
+        var postNav = function() {
+          post('edmission.nav', {
+            url: String(location.href || ''),
+            canGoBack: history.length > 1
+          });
         };
-        if (!window.__edmissionNativeAuthBridge) {
-          window.__edmissionNativeAuthBridge = true;
-          var originalSetItem = localStorage.setItem.bind(localStorage);
-          var originalRemoveItem = localStorage.removeItem.bind(localStorage);
-          var originalClear = localStorage.clear.bind(localStorage);
-
-          localStorage.setItem = function(key, value) {
-            var result = originalSetItem(key, value);
-            if (AUTH_KEYS.indexOf(String(key)) !== -1) postAuthState();
-            return result;
-          };
-
-          localStorage.removeItem = function(key) {
-            var result = originalRemoveItem(key);
-            if (AUTH_KEYS.indexOf(String(key)) !== -1) postAuthState();
-            return result;
-          };
-
-          localStorage.clear = function() {
-            var result = originalClear();
-            postAuthState();
-            return result;
-          };
-        }
-        if (!window.__edmissionNativeNavBridge) {
-          window.__edmissionNativeNavBridge = { depth: 0 };
-          var navBridge = window.__edmissionNativeNavBridge;
-          var originalPushState = history.pushState.bind(history);
-          var originalReplaceState = history.replaceState.bind(history);
+        if (!window.__edmissionNativeUrlBridge) {
+          window.__edmissionNativeUrlBridge = true;
+          var pushState = history.pushState;
+          var replaceState = history.replaceState;
           history.pushState = function() {
-            var result = originalPushState.apply(history, arguments);
-            navBridge.depth = Number(navBridge.depth || 0) + 1;
-            postNavState();
+            var result = pushState.apply(history, arguments);
+            setTimeout(postNav, 0);
             return result;
           };
           history.replaceState = function() {
-            var result = originalReplaceState.apply(history, arguments);
-            postNavState();
+            var result = replaceState.apply(history, arguments);
+            setTimeout(postNav, 0);
             return result;
           };
-          window.addEventListener('popstate', function() {
-            navBridge.depth = Math.max(0, Number(navBridge.depth || 0) - 1);
-            postNavState();
-          });
-          window.addEventListener('hashchange', postNavState);
+          window.addEventListener('popstate', postNav);
+          window.addEventListener('hashchange', postNav);
+          window.addEventListener('load', postNav);
+          document.addEventListener('visibilitychange', postNav);
         }
-
-        localStorage.setItem('auth_user', ${JSON.stringify(userJson)});
-        localStorage.setItem('auth_accessToken', ${JSON.stringify(accessToken)});
-        ${rtLine}
-        localStorage.setItem('auth_lastActivityAt', String(Date.now()));
-
-        var uiRaw = localStorage.getItem('edmission-ui');
-        var uiData = { state: {}, version: 0 };
-        try {
-          if (uiRaw) {
-            var parsed = JSON.parse(uiRaw);
-            if (parsed && typeof parsed === 'object') uiData = parsed;
-          }
-        } catch (e) {}
-        if (!uiData.state || typeof uiData.state !== 'object') uiData.state = {};
-        uiData.state = Object.assign({}, uiData.state, {
-          theme: ${JSON.stringify(theme)},
-          hasThemePreference: true
-        });
-        if (typeof uiData.version !== 'number') uiData.version = 0;
-        localStorage.setItem('edmission-ui', JSON.stringify(uiData));
-
-        try {
-          var root = document.documentElement;
-          root.classList.remove('light', 'dark');
-          root.classList.add(${JSON.stringify(theme)});
-          root.style.colorScheme = ${JSON.stringify(theme)};
-        } catch (e) {}
-
-        postAuthState();
-        postNavState();
+        ${authLines}
+        postNav();
       } catch (e) {}
     })();
     true;
   `
 }
 
-export interface EmbeddedWebAppScreenProps {
-  /** Path on the SPA, e.g. `/university/flyers/new` */
-  webPath: string
-  onCloseRequest?: () => void
-}
-
-/**
- * Loads the web app in a WebView and seeds the same localStorage keys as the website
- * so ProtectedRoute + API client work inside the embedded SPA.
- * Requires a reachable `EXPO_PUBLIC_WEB_APP_URL` in dev when API and Vite use different hosts.
- */
 export function EmbeddedWebAppScreen({ webPath, onCloseRequest }: EmbeddedWebAppScreenProps) {
   const { t } = useTranslation('common')
   const c = useThemeColors()
-  const scheme = useColorScheme()
-  const appTheme: 'light' | 'dark' = scheme === 'dark' ? 'dark' : 'light'
   const { height: winH } = useWindowDimensions()
   const { user, accessToken } = useAuth()
   const origin = useMemo(() => getWebAppOrigin(), [])
-  const uri = `${origin}${webPath.startsWith('/') ? webPath : `/${webPath}`}`
+  const targetPath = safeWebPath(webPath)
+  const targetUri = `${origin}${targetPath}`
 
+  const [webUri, setWebUri] = useState<string | null>(Platform.OS === 'web' ? targetUri : null)
+  const [loadErr, setLoadErr] = useState('')
+  const [webCanGoBack, setWebCanGoBack] = useState(false)
+  const [nativeCanGoBack, setNativeCanGoBack] = useState(false)
+  const [handoffNonce, setHandoffNonce] = useState(0)
   const [authPayload, setAuthPayload] = useState<{
     userJson: string
     accessToken: string
     refreshToken: string | null
   } | null>(null)
-  const [loadErr, setLoadErr] = useState('')
-  const [webCanGoBack, setWebCanGoBack] = useState(false)
-  const [nativeCanGoBack, setNativeCanGoBack] = useState(false)
+  const [useLocalStorageFallback, setUseLocalStorageFallback] = useState(false)
   const canGoBackInWeb = webCanGoBack || nativeCanGoBack
   const webRef = useRef<WebView | null>(null)
   const logoutSyncStarted = useRef(false)
+  const authUrlIntercepts = useRef(0)
 
   useEffect(() => {
+    if (Platform.OS === 'web') {
+      setWebUri(targetUri)
+      return
+    }
+    if (!user || !accessToken) {
+      setWebUri(null)
+      return
+    }
+
     let cancelled = false
+    setLoadErr('')
+    setWebUri(null)
+    setUseLocalStorageFallback(false)
+    authUrlIntercepts.current = 0
     void (async () => {
-      if (!user || !accessToken) {
-        setAuthPayload(null)
-        return
-      }
-      const rt = await getStoredRefreshToken()
+      const refreshToken = await getStoredRefreshToken()
       if (cancelled) return
-      setAuthPayload({
+      const payload = {
         userJson: JSON.stringify(user),
         accessToken,
-        refreshToken: rt ?? null,
-      })
+        refreshToken: refreshToken ?? null,
+      }
+      setAuthPayload(payload)
+      try {
+        const session = await createMobileWebAuthSession()
+        if (cancelled) return
+        const params = new URLSearchParams()
+        params.set('token', session.token)
+        params.set('next', targetPath)
+        setWebUri(`${origin}/mobile-app-auth?${params.toString()}`)
+      } catch {
+        if (cancelled) return
+        setUseLocalStorageFallback(true)
+        setWebUri(targetUri)
+      }
     })()
+
     return () => {
       cancelled = true
     }
-  }, [user, accessToken])
-
-  const injectedNative = useMemo(() => {
-    if (!authPayload) return ''
-    return buildAuthInjectionScript(
-      authPayload.userJson,
-      authPayload.accessToken,
-      authPayload.refreshToken,
-      appTheme
-    )
-  }, [appTheme, authPayload])
+  }, [accessToken, handoffNonce, origin, targetPath, targetUri, user])
 
   const onError = useCallback(() => {
     setLoadErr(t('webEmbedLoadError'))
   }, [t])
 
+  const startLocalStorageFallback = useCallback(() => {
+    authUrlIntercepts.current += 1
+    setLoadErr('')
+    setUseLocalStorageFallback(true)
+    setWebUri(targetUri)
+  }, [targetUri])
+
+  const handleWebsiteUrl = useCallback((url: string): boolean => {
+    if (Platform.OS === 'web') return false
+    try {
+      const next = new URL(url)
+      const appOrigin = new URL(origin)
+      if (next.origin !== appOrigin.origin) return false
+
+      const path = normalizePathname(next.pathname)
+      if (path === '/mobile-app-auth') return false
+
+      if (isWebsiteAuthPath(path)) {
+        if (authPayload && !useLocalStorageFallback && authUrlIntercepts.current < 1) {
+          startLocalStorageFallback()
+        } else if (!logoutSyncStarted.current) {
+          logoutSyncStarted.current = true
+          void logoutLocally('login')
+        }
+        return true
+      }
+
+      if (path === '/') {
+        if (!logoutSyncStarted.current) {
+          logoutSyncStarted.current = true
+          void logoutLocally('landing')
+        }
+        return true
+      }
+    } catch {
+      return false
+    }
+    return false
+  }, [authPayload, origin, startLocalStorageFallback, useLocalStorageFallback])
+
   const onMessage = useCallback((event: { nativeEvent: { data: string } }) => {
     try {
       const payload = JSON.parse(event.nativeEvent.data)
+      if (payload?.type === 'edmission.logout') {
+        if (logoutSyncStarted.current) return
+        logoutSyncStarted.current = true
+        void logoutLocally()
+        return
+      }
+      if (payload?.type === 'edmission.mobileAuthError') {
+        const message = typeof payload.message === 'string' && payload.message.trim()
+          ? payload.message
+          : t('webEmbedLoadError')
+        setLoadErr(message)
+        setWebUri(null)
+        return
+      }
       if (payload?.type === 'edmission.nav') {
+        if (typeof payload.url === 'string' && handleWebsiteUrl(payload.url)) return
         setWebCanGoBack(Boolean(payload.canGoBack))
-        return
       }
-      if (payload?.type !== 'edmission.auth') return
-      const userValue = typeof payload.user === 'string' ? payload.user : ''
-      const accessValue = typeof payload.accessToken === 'string' ? payload.accessToken : ''
-      if (userValue && accessValue) {
-        logoutSyncStarted.current = false
-        return
-      }
-      if (logoutSyncStarted.current) return
-      logoutSyncStarted.current = true
-      void logoutLocally()
     } catch {
       /* ignore unrelated messages */
     }
-  }, [])
+  }, [handleWebsiteUrl, t])
 
   const onNavigationStateChange = useCallback((navState: WebViewNavigation) => {
+    handleWebsiteUrl(navState.url)
     setNativeCanGoBack(Boolean(navState.canGoBack))
-  }, [])
+  }, [handleWebsiteUrl])
+
+  const onShouldStartLoadWithRequest = useCallback((request: WebViewNavigation) => {
+    return !handleWebsiteUrl(request.url)
+  }, [handleWebsiteUrl])
+
+  const nativeShellScript = useMemo(
+    () => buildNativeShellScript(useLocalStorageFallback ? authPayload : null),
+    [authPayload, useLocalStorageFallback]
+  )
 
   useEffect(() => {
     setWebCanGoBack(false)
     setNativeCanGoBack(false)
-  }, [uri])
+  }, [webUri])
 
   useEffect(() => {
     if (Platform.OS !== 'android') return
@@ -262,10 +285,30 @@ export function EmbeddedWebAppScreen({ webPath, onCloseRequest }: EmbeddedWebApp
     )
   }
 
-  if (!authPayload) {
+  if (!webUri || loadErr) {
     return (
       <SafeAreaView style={[styles.center, { backgroundColor: c.background }]}>
-        <ActivityIndicator color={c.primary} />
+        {loadErr ? (
+          <>
+            <Text style={[styles.errorText, { color: c.danger }]}>{loadErr}</Text>
+            <View style={styles.actions}>
+              <Pressable
+                onPress={() => setHandoffNonce((value) => value + 1)}
+                style={[styles.actionButton, { backgroundColor: c.primary }]}
+              >
+                <Text style={{ color: c.onPrimary, fontWeight: fontWeight.semibold }}>{t('retry', 'Retry')}</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => void logoutLocally()}
+                style={[styles.actionButton, styles.secondaryButton, { borderColor: c.border }]}
+              >
+                <Text style={{ color: c.text, fontWeight: fontWeight.semibold }}>{t('back', 'Back')}</Text>
+              </Pressable>
+            </View>
+          </>
+        ) : (
+          <ActivityIndicator color={c.primary} />
+        )}
       </SafeAreaView>
     )
   }
@@ -285,29 +328,22 @@ export function EmbeddedWebAppScreen({ webPath, onCloseRequest }: EmbeddedWebApp
             <Text style={{ color: c.primary, fontWeight: fontWeight.semibold }}>{t('back')}</Text>
           </Pressable>
           <Text style={{ color: c.textMuted, fontSize: fontSize.xs, flex: 1, marginLeft: space[3] }} numberOfLines={1}>
-            {uri}
+            {targetUri}
           </Text>
         </View>
       ) : null}
-      {loadErr ? (
-        <View style={styles.banner}>
-          <Text style={{ color: c.danger, fontSize: fontSize.sm }}>{loadErr}</Text>
-          {Platform.OS === 'web' ? (
-            <Text style={{ color: c.textMuted, fontSize: fontSize.xs, marginTop: 6 }}>{t('webEmbedDevHint')}</Text>
-          ) : null}
-        </View>
-      ) : null}
       <PlatformWebView
-        webKey={`${uri}::${appTheme}`}
+        webKey={`${webUri}::${handoffNonce}`}
         nativeRef={webRef}
-        source={{ uri }}
-        webEmbedAuthSeed={Platform.OS === 'web' ? authPayload : undefined}
-        injectedJavaScriptBeforeContentLoaded={Platform.OS !== 'web' ? injectedNative : undefined}
+        source={{ uri: webUri }}
         style={styles.web}
         onError={onError}
         onHttpError={onError}
         onMessage={onMessage}
         onNavigationStateChange={onNavigationStateChange}
+        onShouldStartLoadWithRequest={onShouldStartLoadWithRequest}
+        injectedJavaScriptBeforeContentLoaded={Platform.OS !== 'web' ? nativeShellScript : undefined}
+        injectedJavaScript={Platform.OS !== 'web' ? nativeShellScript : undefined}
         pullToRefreshEnabled={Platform.OS !== 'web'}
         javaScriptEnabled
         domStorageEnabled
@@ -334,5 +370,25 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   web: { flex: 1 },
-  banner: { padding: space[3] },
+  errorText: {
+    fontSize: fontSize.sm,
+    textAlign: 'center',
+    marginBottom: space[4],
+  },
+  actions: {
+    flexDirection: 'row',
+    gap: space[3],
+  },
+  actionButton: {
+    minWidth: 96,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 8,
+    paddingHorizontal: space[4],
+  },
+  secondaryButton: {
+    backgroundColor: 'transparent',
+    borderWidth: StyleSheet.hairlineWidth,
+  },
 })

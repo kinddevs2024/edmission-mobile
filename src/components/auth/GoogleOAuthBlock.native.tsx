@@ -1,4 +1,4 @@
-import { Alert, Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native'
+import { Alert, Image, Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { loginWithGoogle } from '@/services/auth'
 import { getWebAppUrl } from '@/config/oauth'
@@ -15,6 +15,7 @@ export function GoogleOAuthBlock({
   oauthLocked,
   setParentGoogleBusy,
   termsAccepted,
+  compact,
   style,
 }: {
   mode: Mode
@@ -23,6 +24,7 @@ export function GoogleOAuthBlock({
   oauthLocked: boolean
   setParentGoogleBusy: (v: boolean) => void
   termsAccepted?: boolean
+  compact?: boolean
   style?: StyleProp<ViewStyle>
 }) {
   const { t } = useTranslation(['auth', 'common', 'errors'])
@@ -61,27 +63,34 @@ export function GoogleOAuthBlock({
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityLabel={t('auth:continueWithGoogle')}
       disabled={oauthLocked || !registerOk || googleBusy || !canUseGoogle}
       onPress={() => void onGooglePress()}
       style={({ pressed }) => [
-        styles.button,
+        compact ? styles.compactButton : styles.button,
         { borderColor: c.border, backgroundColor: c.card },
         (pressed || googleBusy) && styles.pressed,
         (oauthLocked || !registerOk || !canUseGoogle) && styles.disabled,
         style,
       ]}
     >
-      <View style={styles.row}>
-        <View style={styles.googleBadge}>
-          <Text style={styles.googleBadgeText}>G</Text>
+      {compact ? (
+        <Image source={googleLogo} resizeMode="contain" style={styles.logo} />
+      ) : (
+        <View style={styles.row}>
+          <View style={styles.googleBadge}>
+            <Text style={styles.googleBadgeText}>G</Text>
+          </View>
+          <Text style={[styles.label, { color: c.text }]}>
+            {googleBusy ? t('common:loading') : t('auth:continueWithGoogle')}
+          </Text>
         </View>
-        <Text style={[styles.label, { color: c.text }]}>
-          {googleBusy ? t('common:loading') : t('auth:continueWithGoogle')}
-        </Text>
-      </View>
+      )}
     </Pressable>
   )
 }
+
+const googleLogo = require('../../../assets/google-logo.webp')
 
 const styles = StyleSheet.create({
   button: {
@@ -91,6 +100,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: space[3],
     justifyContent: 'center',
     marginBottom: space[2],
+  },
+  compactButton: {
+    width: 44,
+    height: 44,
+    minWidth: 44,
+    borderWidth: 1,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logo: {
+    width: 21,
+    height: 21,
   },
   row: { flexDirection: 'row', alignItems: 'center', gap: space[2] },
   googleBadge: {

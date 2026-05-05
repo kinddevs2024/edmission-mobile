@@ -6,10 +6,10 @@
     "scheme": "edmission",
     "version": "2.3.2",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/icon-square.png",
     "userInterfaceStyle": "automatic",
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/splash-logo.png",
       "resizeMode": "contain",
       "backgroundColor": "#f8fafc"
     },
@@ -20,8 +20,8 @@
     "android": {
       "package": "com.edmission.mobile",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/icon.png",
-        "backgroundColor": "#ffffff"
+        "foregroundImage": "./assets/adaptive-foreground.png",
+        "backgroundColor": "#84cc16"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false
@@ -35,7 +35,7 @@
       [
         "expo-notifications",
         {
-          "icon": "./assets/icon.png",
+          "icon": "./assets/adaptive-foreground.png",
           "color": "#84cc16"
         }
       ],
@@ -47,7 +47,7 @@
       ]
     ],
     "notification": {
-      "icon": "./assets/adaptive-icon.png",
+      "icon": "./assets/adaptive-foreground.png",
       "color": "#84cc16"
     }
   }

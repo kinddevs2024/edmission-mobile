@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native'
 import { z } from 'zod'
 import type { StackScreenProps } from '@react-navigation/stack'
 import { login } from '@/services/auth'
@@ -67,8 +67,12 @@ export function LoginScreen({ navigation }: Props) {
       scroll
       contentContainerStyle={styles.scrollContent}
     >
+      <View style={styles.brand}>
+        <Image source={require('../../../assets/icon-square.png')} resizeMode="contain" style={styles.logo} />
+        <Text style={[styles.brandText, { color: c.text }]}>Edmission</Text>
+      </View>
       <AuthCard>
-        <Text style={[styles.title, { color: c.text }]}>{t('common:login')}</Text>
+        <Text style={[styles.title, { color: c.text }]}>{t('auth:signinTitle', 'Sign in to Edmission')}</Text>
 
         <AppTextField
           label={t('auth:email')}
@@ -94,25 +98,23 @@ export function LoginScreen({ navigation }: Props) {
         />
 
         {submitError ? (
-          <Text style={[styles.err, { color: c.danger }]}>{submitError}</Text>
+          <Text style={[styles.err, { color: c.danger, backgroundColor: `${c.danger}14` }]}>{submitError}</Text>
         ) : null}
 
         <AppButton title={t('common:login')} loading={loading} onPress={onSubmit} disabled={loading || submitLocked} />
 
         <View style={styles.links}>
-          <Pressable onPress={() => navigation.navigate('ForgotPassword')}>
+          <Pressable onPress={() => navigation.navigate('ForgotPassword')} style={styles.linkItem}>
             <Text style={[styles.link, { color: c.primary }]}>{t('auth:forgotPassword')}?</Text>
           </Pressable>
-          <View style={styles.secondaryLinks}>
-            <Pressable onPress={() => navigation.navigate('Register')}>
-              <Text style={[styles.muted, { color: c.textMuted }]}>
-                {t('auth:noAccount')} <Text style={[styles.inlineAction, { color: c.primary }]}>{t('common:register')}</Text>
-              </Text>
-            </Pressable>
-            <Pressable onPress={() => navigation.navigate('ChooseLanguage')}>
-              <Text style={[styles.muted, { color: c.textMuted }]}>{t('common:language', 'Language')}</Text>
-            </Pressable>
-          </View>
+          <Text style={[styles.separator, { color: c.textMuted }]}>·</Text>
+          <Pressable onPress={() => navigation.navigate('Register')} style={styles.linkItem}>
+            <Text style={[styles.link, { color: c.primary }]}>{t('common:register')}</Text>
+          </Pressable>
+          <Text style={[styles.separator, { color: c.textMuted }]}>·</Text>
+          <Pressable onPress={() => navigation.navigate('ChooseLanguage')} style={styles.linkItem}>
+            <Text style={[styles.link, { color: c.primary }]}>{t('common:language', 'Language')}</Text>
+          </Pressable>
         </View>
 
         <AuthOAuthSection mode="login" layout="footer" />
@@ -125,19 +127,51 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     justifyContent: 'center',
-    paddingTop: space[4],
+    paddingTop: space[6],
     paddingBottom: space[6],
+  },
+  brand: {
+    alignItems: 'center',
+    marginBottom: space[4],
+    gap: space[2],
+  },
+  logo: {
+    width: 68,
+    height: 68,
+    borderRadius: 16,
+  },
+  brandText: {
+    fontSize: 24,
+    fontWeight: fontWeight.bold,
   },
   title: {
     fontSize: fontSize['2xl'],
     fontWeight: fontWeight.bold,
-    marginBottom: space[4],
+    marginBottom: space[5],
     textAlign: 'center',
   },
-  err: { marginBottom: space[3], fontSize: fontSize.sm },
-  links: { marginTop: space[2], gap: space[2], alignItems: 'center' },
-  secondaryLinks: { gap: space[1], alignItems: 'center' },
+  err: {
+    marginBottom: space[3],
+    fontSize: fontSize.sm,
+    lineHeight: 20,
+    paddingHorizontal: space[3],
+    paddingVertical: space[2],
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  links: {
+    marginTop: space[3],
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    alignItems: 'center',
+    columnGap: space[2],
+    rowGap: space[1],
+  },
+  linkItem: {
+    minHeight: 28,
+    justifyContent: 'center',
+  },
   link: { fontSize: fontSize.sm, textDecorationLine: 'underline', fontWeight: fontWeight.medium },
-  muted: { fontSize: fontSize.sm, textAlign: 'center' },
-  inlineAction: { fontWeight: fontWeight.semibold },
+  separator: { fontSize: fontSize.sm },
 })
